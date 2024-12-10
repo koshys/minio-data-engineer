@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio-snsd-deployment
+  namespace: minio-snsd-ns
+  labels:
+    app: minio-snsd-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio-snsd-app
+  template:
+    metadata:
+      labels:
+        app: minio-snsd-app
+    spec:
+      containers:
+        - name: minio-snsd-container
+          image: minio/minio:RELEASE.2024-11-07T00-52-20Z
+          args: ["server", "--address", ":9002", "--console-address", ":9003", "/mnt/data"]
+          env:
+            - name: MINIO_CONFIG_ENV_FILE
+              value: "/etc/config.env"
+          ports:
+            - containerPort: 9002 # API
+            - containerPort: 9003 # Web UI
+          readinessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: 9002
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: data-volume
+              mountPath: /mnt/data/
+            - name: config-volume
+              mountPath: /etc/config.env
+      volumes:
+        - name: data-volume
+          hostPath:
+            path: /mnt/mnt/data/
+            type: Directory
+        - name: config-volume
+          hostPath:
+            path: /mnt/etc/default/minio
+            type: File

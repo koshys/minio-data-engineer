@@ -1,0 +1,30 @@
+version: '3.7'
+
+# Settings and Configurations that are common for all containers
+x-minio-common: &minio-common
+  image: minio/minio:RELEASE.2024-11-07T00-52-20Z
+  command: server --console-address ":9003" /mnt/data
+  environment:
+    - MINIO_CONFIG_ENV_FILE=/etc/config.env
+  ports:
+    - "9002:9000" # first one is always for API 
+    - "9003:9001" # second one is always for web UI 
+  healthcheck:
+    test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+    interval: 30s
+    timeout: 20s
+    retries: 3
+
+services:
+  minio-local-snsd-dc:
+    <<: *minio-common
+    hostname: minio-local-snsd-dc
+    volumes:
+      # Bind the external OS directory containing your data
+      - type: bind
+        source: /Users/samsonkoshy/.minio/mnt/data
+        target: /mnt/data
+      # Bind the local config file to the container
+      - type: bind
+        source: /Users/samsonkoshy/.minio/etc/default/minio  
+        target: /etc/config.env

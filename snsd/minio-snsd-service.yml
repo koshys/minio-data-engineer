@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-snsd-service
+  namespace: minio-snsd-ns
+  labels:
+    app: minio-snsd-app
+spec:
+  selector:
+    app: minio-snsd-app
+  type: NodePort
+  ports:
+    - name: api-port           # Unique name for the API port
+      protocol: TCP
+      port: 9002              # Exposed API port
+      targetPort: 9002        # Maps to container's API port
+      nodePort: 30002         # Explicit NodePort for API
+    - name: console-port       # Unique name for the Console port
+      protocol: TCP
+      port: 9003              # Exposed Console port
+      targetPort: 9002        # Maps to container's Console port
+      nodePort: 30003         # Explicit NodePort for Console
