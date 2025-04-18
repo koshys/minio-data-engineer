@@ -18,5 +18,5 @@ spec:
     - name: console-port       # Unique name for the Console port
       protocol: TCP
       port: 9003              # Exposed Console port
-      targetPort: 9002        # Maps to container's Console port
+      targetPort: 9003        # Maps to container's Console port
       nodePort: 30003         # Explicit NodePort for Console

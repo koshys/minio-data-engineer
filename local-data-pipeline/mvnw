@@ -1,0 +1,67 @@
+#!/bin/sh
+# ----------------------------------------------------------------------------
+# Maven wrapper script for consistent builds across environments
+# ----------------------------------------------------------------------------
+
+# Check if JAVA_HOME is set and java is available
+if [ -z "$JAVA_HOME" ]; then
+  if type -p java > /dev/null; then
+    echo "Found java executable in PATH"
+    _java=java
+  else
+    echo "No java executable found in PATH. Please set JAVA_HOME or install Java."
+    exit 1
+  fi
+else
+  echo "Found java in JAVA_HOME: $JAVA_HOME"
+  _java="$JAVA_HOME/bin/java"
+fi
+
+# Check Java version
+JAVA_VERSION=$("$_java" -version 2>&1 | head -1 | cut -d'"' -f2 | sed 's/^1\.//' | cut -d'.' -f1)
+echo "Detected Java version: $JAVA_VERSION"
+
+if [ "$JAVA_VERSION" -lt 17 ]; then
+  echo "Java 17 or higher is required to build this project."
+  echo "Your current Java version is $JAVA_VERSION."
+  exit 1
+fi
+
+# Set Maven Opts for Java 17
+if [ -z "$MAVEN_OPTS" ]; then
+  MAVEN_OPTS="--add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED"
+  export MAVEN_OPTS
+  echo "Set MAVEN_OPTS to: $MAVEN_OPTS"
+fi
+
+# Find the project base directory
+SCRIPT_DIR=$(dirname "$0")
+cd "$SCRIPT_DIR" || exit 1
+
+# Download Maven if it doesn't exist
+MAVEN_VERSION="3.9.6"
+MAVEN_HOME="$SCRIPT_DIR/.mvn"
+MAVEN_BIN="$MAVEN_HOME/bin/mvn"
+
+if [ ! -f "$MAVEN_BIN" ]; then
+  echo "Maven not found. Downloading Maven $MAVEN_VERSION..."
+  mkdir -p "$MAVEN_HOME"
+  
+  if [ "$(uname)" = "Darwin" ]; then
+    # macOS
+    curl -fsSL "https://dlcdn.apache.org/maven/maven-3/$MAVEN_VERSION/binaries/apache-maven-$MAVEN_VERSION-bin.tar.gz" | tar -xz -C "$MAVEN_HOME" --strip-components 1
+  else
+    # Linux and others
+    curl -fsSL "https://dlcdn.apache.org/maven/maven-3/$MAVEN_VERSION/binaries/apache-maven-$MAVEN_VERSION-bin.tar.gz" | tar -xz -C "$MAVEN_HOME" --strip-components 1
+  fi
+  
+  if [ ! -f "$MAVEN_BIN" ]; then
+    echo "Failed to download Maven. Please install Maven manually."
+    exit 1
+  fi
+  
+  echo "Maven $MAVEN_VERSION installed successfully."
+fi
+
+# Run Maven
+"$MAVEN_BIN" "$@"
