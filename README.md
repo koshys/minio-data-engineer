@@ -1,4 +1,4 @@
-# MinIO Data Engineer Project
+# Local Data Pipeline
 
 Welcome to the **MinIO Data Engineer** repository! This project is designed to explore, implement, and demonstrate scalable data engineering practices using MinIO, an open-source high-performance object storage system. 
 
