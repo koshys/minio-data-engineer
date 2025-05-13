@@ -9,7 +9,22 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.concurrent.TimeUnit;
+import java.util.HashMap;
+import java.util.Map;
+import java.net.URI;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 @Slf4j
 public class PipelineProfiler implements AutoCloseable {
@@ -22,8 +37,9 @@ public class PipelineProfiler implements AutoCloseable {
     }
 
     private final MeterRegistry registry;
-
     private Instant startTime;
+    private final int flushThreshold;
+    private final int pollTimeoutMS;
     
     // Producer metrics
     private Instant producerStartTime;    
@@ -50,8 +66,16 @@ public class PipelineProfiler implements AutoCloseable {
     private Timer minioAggSize;
     
     public PipelineProfiler(EventType... eventTypes) {
+        this(226, 1000, eventTypes); //Default
+    }
+    
+    public PipelineProfiler(int flushThreshold, int pollTimeoutMS, EventType... eventTypes) {
         this.registry = new SimpleMeterRegistry();
         this.startTime = Instant.now();
+        
+        // Store configuration parameters
+        this.flushThreshold = flushThreshold;
+        this.pollTimeoutMS = pollTimeoutMS;
         
         // Always initialize all counters
         this.producerEvents = registry.counter("producer.events");
@@ -249,6 +273,180 @@ public class PipelineProfiler implements AutoCloseable {
                 log.info("  - p{}: {}", (int)(p.percentile() * 100), formatBytes(p.value(TimeUnit.NANOSECONDS)));
             }
         }
+        
+        // Save metrics to MinIO
+        try {
+            save();
+            log.info("Performance metrics saved to MinIO");
+        } catch (Exception e) {
+            log.error("Failed to save performance metrics to MinIO", e);
+        }
+    }
+    
+    /**
+     * Saves the pipeline metrics as JSON to MinIO
+     */
+    public void save() {
+        try {
+            AppConfig config = AppConfig.getInstance();
+            
+            // Create S3 client for MinIO
+            AwsBasicCredentials credentials = AwsBasicCredentials.create(
+                    config.getIceberg().getS3AccessKey(),
+                    config.getIceberg().getS3SecretKey());
+            
+            S3Client s3Client = S3Client.builder()
+                    .endpointOverride(URI.create(config.getIceberg().getS3Endpoint()))
+                    .credentialsProvider(StaticCredentialsProvider.create(credentials))
+                    .region(Region.US_EAST_1) // MinIO requires a region but doesn't use it
+                    .httpClient(UrlConnectionHttpClient.builder().build())
+                    .forcePathStyle(true) // Required for MinIO compatibility
+                    .build();
+            
+            log.debug("S3 client initialized for saving pipeline metrics");
+            
+            // Create metrics map
+            Map<String, Object> metricsMap = new HashMap<>();
+            Map<String, Object> runtimeMap = new HashMap<>();
+            Map<String, Object> producerMap = new HashMap<>();
+            Map<String, Object> consumerMap = new HashMap<>();
+            Map<String, Object> minioRawMap = new HashMap<>();
+            Map<String, Object> minioAggMap = new HashMap<>();
+            
+            // Runtime metrics
+            Duration runtime = Duration.between(startTime, Instant.now());
+            runtimeMap.put("timestamp", startTime.toString());
+            runtimeMap.put("duration_ms", runtime.toMillis());
+            metricsMap.put("runtime", runtimeMap);
+            log.info(config.getEventsToGenerate() + "::" + config.getKafka().getMaxPollRecords() + "::" + this.flushThreshold + "::" + this.pollTimeoutMS);
+            metricsMap.put("config", config.getEventsToGenerate() + "::" + 
+                                         config.getKafka().getMaxPollRecords() + "::" +
+                                         this.pollTimeoutMS + "::" +
+                                         this.flushThreshold
+                           );
+            
+            // Producer metrics
+            if (producerStartTime != null) {
+                Duration runtimeProducer = Duration.between(producerStartTime, Instant.now());
+                double runtimeProducerSeconds = runtimeProducer.toMillis() / 1000.0;
+                producerMap.put("events", producerEvents.count());
+                producerMap.put("events_per_second", producerEvents.count() / runtimeProducerSeconds);
+                producerMap.put("duration_ms", runtimeProducer.toMillis());
+                metricsMap.put("producer", producerMap);
+            }
+            
+            // Consumer metrics
+            if (consumerStartTime != null) {
+                Duration runtimeConsumer = Duration.between(consumerStartTime, Instant.now());
+                double runtimeConsumerSeconds = runtimeConsumer.toMillis() / 1000.0;
+                consumerMap.put("events", consumerEvents.count());
+                consumerMap.put("events_per_second", consumerEvents.count() / runtimeConsumerSeconds);
+                consumerMap.put("duration_ms", runtimeConsumer.toMillis());
+                metricsMap.put("consumer", consumerMap);
+            }
+            
+            // MinIO Raw metrics
+            if (minioRawStartTime != null) {
+                Duration runtimeMinioRaw = Duration.between(minioRawStartTime, Instant.now());
+                double runtimeMinioRawSeconds = runtimeMinioRaw.toMillis() / 1000.0;
+                
+                minioRawMap.put("puts", minioRawPuts.count());
+                minioRawMap.put("puts_per_second", minioRawPuts.count() / runtimeMinioRawSeconds);
+                minioRawMap.put("bytes", minioRawBytes.count());
+                minioRawMap.put("bytes_per_second", minioRawBytes.count() / runtimeMinioRawSeconds);
+                minioRawMap.put("events", minioRawPutEvents.count());
+                minioRawMap.put("duration_ms", runtimeMinioRaw.toMillis());
+                
+                // Latency percentiles
+                Map<String, Object> latencyMap = new HashMap<>();
+                latencyMap.put("max_ms", minioRawLatency.max(TimeUnit.MILLISECONDS));
+                latencyMap.put("mean_ms", minioRawLatency.mean(TimeUnit.MILLISECONDS));
+                
+                Map<String, Double> percentilesMap = new HashMap<>();
+                for (ValueAtPercentile p : minioRawLatency.takeSnapshot().percentileValues()) {
+                    percentilesMap.put("p" + (int)(p.percentile() * 100), p.value(TimeUnit.MILLISECONDS));
+                }
+                latencyMap.put("percentiles", percentilesMap);
+                minioRawMap.put("latency", latencyMap);
+                
+                // Size percentiles
+                Map<String, Object> sizeMap = new HashMap<>();
+                sizeMap.put("max_bytes", minioRawSize.max(TimeUnit.NANOSECONDS));
+                sizeMap.put("mean_bytes", minioRawSize.mean(TimeUnit.NANOSECONDS));
+                
+                Map<String, Double> sizePercentilesMap = new HashMap<>();
+                for (ValueAtPercentile p : minioRawSize.takeSnapshot().percentileValues()) {
+                    sizePercentilesMap.put("p" + (int)(p.percentile() * 100), p.value(TimeUnit.NANOSECONDS));
+                }
+                sizeMap.put("percentiles", sizePercentilesMap);
+                minioRawMap.put("size", sizeMap);
+                
+                metricsMap.put("minio_raw", minioRawMap);
+            }
+            
+            // MinIO Aggregated metrics
+            if (minioAggPutsStartTime != null) {
+                Duration runtimeMinioAgg = Duration.between(minioAggPutsStartTime, Instant.now());
+                double runtimeMinioAggSeconds = runtimeMinioAgg.toMillis() / 1000.0;
+                
+                minioAggMap.put("puts", minioAggPuts.count());
+                minioAggMap.put("puts_per_second", minioAggPuts.count() / runtimeMinioAggSeconds);
+                minioAggMap.put("bytes", minioAggBytes.count());
+                minioAggMap.put("bytes_per_second", minioAggBytes.count() / runtimeMinioAggSeconds);
+                minioAggMap.put("events", minioAggPutEvents.count());
+                minioAggMap.put("duration_ms", runtimeMinioAgg.toMillis());
+                
+                // Latency percentiles
+                Map<String, Object> latencyMap = new HashMap<>();
+                latencyMap.put("max_ms", minioAggLatency.max(TimeUnit.MILLISECONDS));
+                latencyMap.put("mean_ms", minioAggLatency.mean(TimeUnit.MILLISECONDS));
+                
+                Map<String, Double> percentilesMap = new HashMap<>();
+                for (ValueAtPercentile p : minioAggLatency.takeSnapshot().percentileValues()) {
+                    percentilesMap.put("p" + (int)(p.percentile() * 100), p.value(TimeUnit.MILLISECONDS));
+                }
+                latencyMap.put("percentiles", percentilesMap);
+                minioAggMap.put("latency", latencyMap);
+                
+                // Size percentiles
+                Map<String, Object> sizeMap = new HashMap<>();
+                sizeMap.put("max_bytes", minioAggSize.max(TimeUnit.NANOSECONDS));
+                sizeMap.put("mean_bytes", minioAggSize.mean(TimeUnit.NANOSECONDS));
+                
+                Map<String, Double> sizePercentilesMap = new HashMap<>();
+                for (ValueAtPercentile p : minioAggSize.takeSnapshot().percentileValues()) {
+                    sizePercentilesMap.put("p" + (int)(p.percentile() * 100), p.value(TimeUnit.NANOSECONDS));
+                }
+                sizeMap.put("percentiles", sizePercentilesMap);
+                minioAggMap.put("size", sizeMap);
+                
+                metricsMap.put("minio_agg", minioAggMap);
+            }
+            
+            
+            ObjectMapper mapper = new ObjectMapper();
+            String jsonMetrics = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(metricsMap);
+            
+            
+            LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
+            String timestamp = now.format(formatter);
+            String metricsFilename = "stats/pipeline_metrics_" + timestamp + ".json";
+            
+            
+            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                    .bucket(config.getIceberg().getS3Bucket())
+                    .key(metricsFilename)
+                    .contentType("application/json")
+                    .build();
+            
+            s3Client.putObject(putObjectRequest, RequestBody.fromString(jsonMetrics));
+            log.info("Pipeline metrics saved to s3://{}/{}", config.getIceberg().getS3Bucket(), metricsFilename);
+            
+        } catch (Exception e) {
+            log.error("Error saving metrics to MinIO", e);
+            throw new RuntimeException("Failed to save metrics to MinIO", e);
+        }
     }
     
     private String formatNumber(double number) {
@@ -284,4 +482,5 @@ public class PipelineProfiler implements AutoCloseable {
             return String.format("%dms", millis);
         }
     }
+    
 } 

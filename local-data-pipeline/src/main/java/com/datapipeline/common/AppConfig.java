@@ -12,7 +12,7 @@ import java.util.Properties;
 public class AppConfig {
     // General application settings
     private String applicationId = "local-data-pipeline";
-    private int eventsToGenerate = 20_000_000;
+    private int eventsToGenerate = 10_000_000;
     private int generationThreads = 4;
     private boolean isDockerDeployment = false;
     

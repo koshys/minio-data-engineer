@@ -58,57 +58,18 @@ services:
       - data-pipeline-network
 
   # MinIO (S3-compatible storage)
-  # minio:
-  #   image: quay.io/minio/aistor/minio #minio/minio
-  #   hostname: minio
-  #   container_name: minio
-  #   ports:
-  #     - "9090:9000"
-  #     - "9091:9001"
-  #   environment:
-  #     MINIO_ROOT_USER: minioadmin
-  #     MINIO_ROOT_PASSWORD: minioadmin
-  #     MINIO_PROMETHEUS_AUTH_TYPE: public
-  #   command: server /data --console-address ":9001" --license /etc/minio/minio.license
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-  #     interval: 30s
-  #     timeout: 20s
-  #     retries: 3
-  #   volumes:
-  #     - minio-data:/data
-  #     - ./license:/etc/minio/minio.license
-  #   networks:
-  #     - data-pipeline-network
-
-  # # MinIO setup (create buckets)
-  # minio-setup:
-  #   image: quay.io/minio/aistor/mc #minio/mc
-  #   depends_on:
-  #     - minio
-  #   entrypoint: >
-  #     /bin/sh -c "
-  #     sleep 5;
-  #     /usr/bin/mc alias set local http://minio:9000 minioadmin minioadmin;
-  #     /usr/bin/mc mb --ignore-existing local/warehouse;
-  #     /usr/bin/mc policy set public local/warehouse;
-  #     /usr/bin/mc version enable local/warehouse;
-  #     exit 0;
-  #     "
-  #   networks:
-  #     - data-pipeline-network  
   minio:
-    image: quay.io/minio/minio
+    image: minio/minio #quay.io/minio/aistor/minio
     hostname: minio
     container_name: minio
     ports:
-      - "9000:9000"
+      - "9090:9000"
       - "9091:9001"
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
       MINIO_PROMETHEUS_AUTH_TYPE: public
-    command: server /data --console-address ":9001"
+    command: server /data --console-address ":9001" #--license /etc/minio/minio.license
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 30s
@@ -116,12 +77,13 @@ services:
       retries: 3
     volumes:
       - minio-data:/data
+      #- ./license:/etc/minio/minio.license
     networks:
       - data-pipeline-network
 
   # MinIO setup (create buckets)
   minio-setup:
-    image: quay.io/minio/aistor/mc #minio/mc
+    image: minio/mc #quay.io/minio/aistor/mc
     depends_on:
       - minio
     entrypoint: >
@@ -209,6 +171,48 @@ services:
     networks:
       - data-pipeline-network
 
+  # DuckDB client for querying MinIO data
+  duckdb-client:
+    image: ubuntu:22.04
+    container_name: duckdb-client
+    depends_on:
+      - minio
+    environment:
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_BUCKET=warehouse
+    volumes:
+      - ./duckdb-init:/opt/duckdb-init
+      - duckdb-data:/data
+    networks:
+      - data-pipeline-network
+    command: >
+      bash -c "
+        apt-get update && 
+        apt-get install -y wget unzip curl gettext-base ca-certificates &&
+        wget -O duckdb_cli.zip https://github.com/duckdb/duckdb/releases/download/v1.2.2/duckdb_cli-linux-amd64.zip &&
+        unzip duckdb_cli.zip && 
+        mv duckdb /usr/local/bin/ && 
+        chmod +x /usr/local/bin/duckdb &&
+        mkdir -p ~/.duckdb &&
+        envsubst < /opt/duckdb-init/setup.sql > /opt/duckdb-init/setup_env.sql &&
+        echo '.read /opt/duckdb-init/setup_env.sql' > ~/.duckdbrc &&
+        echo 'DuckDB client ready. Connect with: docker exec -it duckdb-client duckdb' &&
+        echo 'Environment variables configured:' &&
+        echo '  MINIO_ENDPOINT: $MINIO_ENDPOINT' &&
+        echo '  MINIO_BUCKET: $MINIO_BUCKET' &&
+        tail -f /dev/null
+      "
+
 volumes:
+  #minio-data:
+  #  driver: local
+  #  driver_opts:
+  #    type: none
+  #    o: bind
+  #    device: /mnt/data
   minio-data:
-  grafana-storage: 
+  grafana-storage:
+  aistor-data:
+  duckdb-data: 

@@ -1,6 +1,6 @@
 # Local Data Pipeline
 
-A local development environment for processing events from Kafka and writing them to MinIO (S3-compatible storage).
+A local development environment for processing events from Kafka and writing them to MinIO AIStor (S3-compatible storage).
 
 ## Features
 
@@ -39,7 +39,7 @@ KAFKA_TOPIC=events
 KAFKA_CONSUMER_GROUP=data-pipeline-consumer
 
 # MinIO Configuration
-MINIO_ENDPOINT=http://localhost:9000
+MINIO_ENDPOINT=http://localhost:9090
 MINIO_ACCESS_KEY=minioadmin
 MINIO_SECRET_KEY=minioadmin
 MINIO_BUCKET=warehouse
@@ -47,7 +47,7 @@ MINIO_BUCKET=warehouse
 
 ## Building and Running
 
-0. `cd /home/minio/minio/labs/minio-for-datalakes/local-data-pipeline` {{ Execute }}
+0. `cd local-data-pipeline` {{ Execute }}
 1. Run the pipeline:
 `./run-pipeline.sh` {{ Execute }}
 
@@ -86,7 +86,7 @@ The `run-pipeline.sh` script will:
 
 - Kafka consumer metrics are exposed via JMX on port 9999
 - Logs are written to both console and file
-- MinIO UI available at http://localhost:9001
+- MinIO UI available at http://localhost:9091
 
 ## Troubleshooting
 
@@ -97,9 +97,9 @@ docker-compose logs -f
 
 2. Verify MinIO access:
 ```bash
-mc alias set myminio http://localhost:9000 minioadmin minioadmin
+mc alias set myminio http://localhost:9090 minioadmin minioadmin
 mc ls myminio/warehouse/ -r --versions
-You can check the MinIO UI at http://localhost:9001
+You can check the MinIO UI at http://localhost:9091
 ```
 
 3. Check Kafka consumer metrics:
@@ -113,6 +113,10 @@ To modify the aggregation logic or add new features, or change the schema, or ge
 1. Update the java classes
 2. Rebuild the application
 3. Restart the pipeline
+
+# Demo 
+[Demo Markdown](README-DAY-01.md)
+
 
 ## License
 MIT License 

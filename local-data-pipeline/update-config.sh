@@ -3,7 +3,7 @@
 set -e
 
 if [ "$#" -ne 4 ]; then
-  echo "Usage: ./update-config.sh <new_events_value> <new_poll_value> <poll_timeout_ms> <flush_threshold>"
+  echo "Usage: ./update-config.sh <new_events_value> <new_poll_value> <poll_timeout_ms> < {10 < flush_threshold < 225} >"
   exit 1
 fi
 
@@ -22,6 +22,11 @@ if [ ! -f "$FILE1" ]; then
 fi
 if [ ! -f "$FILE2" ]; then
   echo "Error: File not found: $FILE2"
+  exit 1
+fi
+
+if (( FLUSH_THRESHOLD < 10 || FLUSH_THRESHOLD > 225 )); then
+  echo "Error: FLUSH_THRESHOLD must be between 10 and 225"
   exit 1
 fi
 

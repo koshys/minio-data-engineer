@@ -239,6 +239,8 @@ public class DirectKafkaEventProcessor {
             initS3Client();
             initKafkaConsumer();
             this.profiler = new PipelineProfiler(
+                FLUSH_THRESHOLD,
+                POLL_TIMEOUT_MS,
                 PipelineProfiler.EventType.CONSUMER,
                 PipelineProfiler.EventType.MINIO_RAW, 
                 PipelineProfiler.EventType.MINIO_AGG

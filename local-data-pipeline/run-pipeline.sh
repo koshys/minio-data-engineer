@@ -7,7 +7,7 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # Default settings
-CLEAN_VOLUMES=true
+CLEAN_VOLUMES=false
 
 # Parse command line arguments
 while [[ "$#" -gt 0 ]]; do

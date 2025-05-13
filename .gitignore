@@ -1,0 +1,14 @@
+# standard stuff
+.DS_Store
+.vscode/
+**/*license*
+**/site-packages
+
+# java 
+**/.mvn
+**/target
+**/*.class
+**/*.jar
+
+# local virtual python envs 
+**/localpy
