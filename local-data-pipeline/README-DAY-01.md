@@ -42,12 +42,12 @@ You can then go to
 
 For each demo exercise, you'll need to modify the configuration parameters in the following files:
 
-1. `src/main/java/com/minio/training/demos/pipeline/config/AppConfig.java`:
+1. `src/main/java/com/datapipeline/common/AppConfig.java`:
    - `eventsToGenerate`: Number of synthetic events to generate
    - `maxPollRecords`: Maximum number of records to poll from Kafka at once, and write to MinIO Raw and Aggregate Dataset
 
 
-2. `src/main/java/com/minio/training/demos/pipeline/processor/DirectKafkaEventProcessor.java`:
+2. `src/main/java/com/datapipeline/consumer/DirectKafkaEventProcessor.java`:
    - `POLL_TIMEOUT_MS`: Timeout for Kafka consumer polling in milliseconds
    - `FLUSH_THRESHOLD`: Minimum Number of data grains produced before writing to MinIO Aggregate Dataset
 
@@ -62,14 +62,14 @@ A quicker way to update then is to use
 
 First, let's establish a baseline by configuring the pipeline with default parameters:
 
-1. Edit `src/main/java/com/minio/training/demos/pipeline/config/AppConfig.java`:
+1. Edit `src/main/java/com/datapipeline/common/AppConfig.java`:
    ```java
    // Modify these constants
    private int eventsToGenerate = 1_000_000; //Number of synthetic events to generate
    private int maxPollRecords = 500;  // 500 | 1000 | 10000 Maximum number of records to poll from Kafka at once, and write to MinIO Raw and Aggregate Dataset
    ```
    
-   Edit `src/main/java/com/minio/training/demos/pipeline/processor/DirectKafkaEventProcessor.java`:
+   Edit `src/main/java/com/datapipeline/consumer/DirectKafkaEventProcessor.java`:
    ```java
    // Find and modify this constant
    private static final int POLL_TIMEOUT_MS = 1000; //Timeout for Kafka consumer polling in milliseconds
@@ -150,14 +150,14 @@ you can use the following to query
 
 Let's modify the number of events to see how it affects throughput: to 5 million events
 
-1. Edit `src/main/java/com/minio/training/demos/pipeline/config/AppConfig.java`:
+1. Edit `src/main/java/com/datapipeline/common/AppConfig.java`:
    ```java
    // Modify these constants
    private int eventsToGenerate = 5_000_000; //Number of synthetic events to generate
    private int maxPollRecords = 500;  // 500 | 1000 | 10000 Maximum number of records to poll from Kafka at once, and write to MinIO Raw and Aggregate Dataset
    ```
    
-   Edit `src/main/java/com/minio/training/demos/pipeline/processor/DirectKafkaEventProcessor.java`:
+   Edit `src/main/java/com/datapipeline/consumer/DirectKafkaEventProcessor.java`:
    ```java
    // Find and modify this constant
    private static final int POLL_TIMEOUT_MS = 1000; //Timeout for Kafka consumer polling in milliseconds
@@ -175,14 +175,14 @@ Let's modify the number of events to see how it affects throughput: to 5 million
 
 Let's modify the number of events to see how it affects throughput: to 10 million events
 4.  
-   Edit `src/main/java/com/minio/training/demos/pipeline/config/AppConfig.java`:
+   Edit `src/main/java/com/datapipeline/common/AppConfig.java`:
    ```java
    // Modify these constants
    private int eventsToGenerate = 10_000_000; //Number of synthetic events to generate
    private int maxPollRecords = 500;  // 500 | 1000 | 10000 Maximum number of records to poll from Kafka at once, and write to MinIO Raw and Aggregate Dataset
    ```
    
-   Edit `src/main/java/com/minio/training/demos/pipeline/processor/DirectKafkaEventProcessor.java`:
+   Edit `src/main/java/com/datapipeline/consumer/DirectKafkaEventProcessor.java`:
    ```java
    // Find and modify this constant
    private static final int POLL_TIMEOUT_MS = 1000; //Timeout for Kafka consumer polling in milliseconds  
@@ -212,14 +212,14 @@ Now let's experiment with different poll record sizes
 , which determines how many records are processed before writing to MinIO RAW dataset:
 
 Small Poll Size
-1.    Edit `src/main/java/com/minio/training/demos/pipeline/config/AppConfig.java`:
+1.    Edit `src/main/java/com/datapipeline/common/AppConfig.java`:
    ```java
    // Modify these constants
    private int eventsToGenerate = 10_000_000; //Number of synthetic events to generate
    private int maxPollRecords = 10;  // 500 | 1000 | 10000 Maximum number of records to poll from Kafka at once, and write to MinIO Raw and Aggregate Dataset
    ```
    
-   Edit `src/main/java/com/minio/training/demos/pipeline/processor/DirectKafkaEventProcessor.java`:
+   Edit `src/main/java/com/datapipeline/consumer/DirectKafkaEventProcessor.java`:
    ```java
    // Find and modify this constant
    private static final int POLL_TIMEOUT_MS = 1000;   //Timeout for Kafka consumer polling in milliseconds  
@@ -238,14 +238,14 @@ Small Poll Size
 
 
 Medium Poll Size
-3.   Edit `src/main/java/com/minio/training/demos/pipeline/config/AppConfig.java`:
+3.   Edit `src/main/java/com/datapipeline/common/AppConfig.java`:
    ```java
    // Modify these constants
    private int eventsToGenerate = 10_000_000; //Number of synthetic events to generate
    private int maxPollRecords = 1000;  // 500 | 1000 | 10000 Maximum number of records to poll from Kafka at once, and write to MinIO Raw and Aggregate Dataset
    ```
    
-   Edit `src/main/java/com/minio/training/demos/pipeline/processor/DirectKafkaEventProcessor.java`:
+   Edit `src/main/java/com/datapipeline/consumer/DirectKafkaEventProcessor.java`:
    ```java
    // Find and modify this constant
    private static final int POLL_TIMEOUT_MS = 1000;   //Timeout for Kafka consumer polling in milliseconds  
@@ -265,14 +265,14 @@ Medium Poll Size
 
 Large Poll Size
 
-6.   Edit `src/main/java/com/minio/training/demos/pipeline/config/AppConfig.java`:
+6.   Edit `src/main/java/com/datapipeline/common/AppConfig.java`:
    ```java
    // Modify these constants
    private int eventsToGenerate = 10_000_000;
    private int maxPollRecords = 10000;  // 500 | 1000 | 10000
    ```
    
-   Edit `src/main/java/com/minio/training/demos/pipeline/processor/DirectKafkaEventProcessor.java`:
+   Edit `src/main/java/com/datapipeline/consumer/DirectKafkaEventProcessor.java`:
    ```java
    // Find and modify this constant
    private static final int POLL_TIMEOUT_MS = 1000;   
@@ -302,14 +302,14 @@ you can use the following to query
 The flush threshold determines the minimum data grains produced before writing to MinIO Aggregate dataset:
 
 Small batch Size
-1.     Edit `src/main/java/com/minio/training/demos/pipeline/config/AppConfig.java`:
+1.     Edit `src/main/java/com/datapipeline/common/AppConfig.java`:
    ```java
    // Modify these constants
    private int eventsToGenerate = 10_000_000;
    private int maxPollRecords = 10000;  // 500 | 1000 | 10000
    ```
    
-   Edit `src/main/java/com/minio/training/demos/pipeline/processor/DirectKafkaEventProcessor.java`:
+   Edit `src/main/java/com/datapipeline/consumer/DirectKafkaEventProcessor.java`:
    ```java
    // Find and modify this constant
    private static final int POLL_TIMEOUT_MS = 1000;   
@@ -328,14 +328,14 @@ Small batch Size
 
 
 Medium batch Size
-3.   Edit `src/main/java/com/minio/training/demos/pipeline/config/AppConfig.java`:
+3.   Edit `src/main/java/com/datapipeline/common/AppConfig.java`:
    ```java
    // Modify these constants
    private int eventsToGenerate = 10_000_000;
    private int maxPollRecords = 10000;  // 500 | 1000 | 10000
    ```
    
-   Edit `src/main/java/com/minio/training/demos/pipeline/processor/DirectKafkaEventProcessor.java`:
+   Edit `src/main/java/com/datapipeline/consumer/DirectKafkaEventProcessor.java`:
    ```java
    // Find and modify this constant
    private static final int POLL_TIMEOUT_MS = 1000;   
@@ -355,14 +355,14 @@ Medium batch Size
 
 Large Batch Size
 
-6.   Edit `src/main/java/com/minio/training/demos/pipeline/config/AppConfig.java`:
+6.   Edit `src/main/java/com/datapipeline/common/AppConfig.java`:
    ```java
    // Modify these constants
    private int eventsToGenerate = 10_000_000;
    private int maxPollRecords = 10000;  // 500 | 1000 | 10000
    ```
    
-   Edit `src/main/java/com/minio/training/demos/pipeline/processor/DirectKafkaEventProcessor.java`:
+   Edit `src/main/java/com/datapipeline/consumer/DirectKafkaEventProcessor.java`:
    ```java
    // Find and modify this constant
    private static final int POLL_TIMEOUT_MS = 1000;   
@@ -392,14 +392,14 @@ you can use the following to query
 The poll timeout affects how long the consumer waits for records to get processed:
 
 Small Poll Timeout
-1.     Edit `src/main/java/com/minio/training/demos/pipeline/config/AppConfig.java`:
+1.     Edit `src/main/java/com/datapipeline/common/AppConfig.java`:
    ```java
    // Modify these constants
    private int eventsToGenerate = 10_000_000;
    private int maxPollRecords = 10000;  // 500 | 1000 | 10000
    ```
    
-   Edit `src/main/java/com/minio/training/demos/pipeline/processor/DirectKafkaEventProcessor.java`:
+   Edit `src/main/java/com/datapipeline/consumer/DirectKafkaEventProcessor.java`:
    ```java
    // Find and modify this constant
    private static final int POLL_TIMEOUT_MS = 10;   
@@ -418,14 +418,14 @@ Small Poll Timeout
 
 
 Medium Poll Timeout
-3.   Edit `src/main/java/com/minio/training/demos/pipeline/config/AppConfig.java`:
+3.   Edit `src/main/java/com/datapipeline/common/AppConfig.java`:
    ```java
    // Modify these constants
    private int eventsToGenerate = 10_000_000;
    private int maxPollRecords = 10000;  // 500 | 1000 | 10000
    ```
    
-   Edit `src/main/java/com/minio/training/demos/pipeline/processor/DirectKafkaEventProcessor.java`:
+   Edit `src/main/java/com/datapipeline/consumer/DirectKafkaEventProcessor.java`:
    ```java
    // Find and modify this constant
    private static final int POLL_TIMEOUT_MS = 100;
@@ -445,14 +445,14 @@ Medium Poll Timeout
 
 Large Poll Timeout
 
-6.   Edit `src/main/java/com/minio/training/demos/pipeline/config/AppConfig.java`:
+6.   Edit `src/main/java/com/datapipeline/common/AppConfig.java`:
    ```java
    // Modify these constants
    private int eventsToGenerate = 10_000_000;
    private int maxPollRecords = 10000;  // 500 | 1000 | 10000
    ```
    
-   Edit `src/main/java/com/minio/training/demos/pipeline/processor/DirectKafkaEventProcessor.java`:
+   Edit `src/main/java/com/datapipeline/consumer/DirectKafkaEventProcessor.java`:
    ```java
    // Find and modify this constant
    private static final int POLL_TIMEOUT_MS = 1500;   
