@@ -28,23 +28,6 @@ A local development environment for processing events from Kafka and writing the
 - Maven 3.8 or later
 
 
-## Configuration
-
-The application uses environment variables for configuration. Create a `.env` file in the project root:
-
-```env
-# Kafka Configuration
-KAFKA_BOOTSTRAP_SERVERS=localhost:9092
-KAFKA_TOPIC=events
-KAFKA_CONSUMER_GROUP=data-pipeline-consumer
-
-# MinIO Configuration
-MINIO_ENDPOINT=http://localhost:9090
-MINIO_ACCESS_KEY=minioadmin
-MINIO_SECRET_KEY=minioadmin
-MINIO_BUCKET=warehouse
-```
-
 ## Building and Running
 
 0. `cd local-data-pipeline` {{ Execute }}
